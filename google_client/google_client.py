@@ -35,25 +35,33 @@ class GoogleClient:
         calendars = self.auth_google.calendar_service.calendarList().list().execute()
 
         for _ in calendars["items"]:
-            if _.get('primary', False):
+            if _.get("primary", False):
                 return _
-            
+
     def get_calendar_events(self, calendar_id: str) -> list:
         events = []
         page_token = None
 
         while True:
-            events_result = self.auth_google.calendar_service.events().list(calendarId=calendar_id, pageToken=page_token).execute()
-            events.extend(events_result.get('items', []))
+            events_result = (
+                self.auth_google.calendar_service.events()
+                .list(calendarId=calendar_id, pageToken=page_token)
+                .execute()
+            )
+            events.extend(events_result.get("items", []))
 
-            page_token = events_result.get('nextPageToken')
+            page_token = events_result.get("nextPageToken")
             if not page_token:
                 break
 
         return events
 
     def create_new_event(self, calendar_id: str, event_json: str) -> None:
-        event_result = self.auth_google.calendar_service.events().insert(calendarId=calendar_id, body=event_json).execute()
+        event_result = (
+            self.auth_google.calendar_service.events()
+            .insert(calendarId=calendar_id, body=event_json)
+            .execute()
+        )
         print(f"Event Created: {event_result.get('htmlLink')}")
 
     def get_google_drive_folder(self, folder_id: str) -> dict:
@@ -232,15 +240,20 @@ class GoogleClient:
         except HttpError as error:
             print(f"An error occurred: {error}")
             return None
-        
-    def get_resource_type(self, resource_id: str) -> DriveTypes:
-        file = self.auth_google.drive_service.files().get(fileId=resource_id, fields='mimeType').execute()
-        mime_type = file['mimeType']
 
-        if mime_type == 'application/vnd.google-apps.folder':
+    def get_resource_type(self, resource_id: str) -> DriveTypes:
+        file = (
+            self.auth_google.drive_service.files()
+            .get(fileId=resource_id, fields="mimeType")
+            .execute()
+        )
+        mime_type = file["mimeType"]
+
+        if mime_type == "application/vnd.google-apps.folder":
             return DriveTypes.FOLDER
-        elif mime_type == 'application/vnd.google-apps.presentation':
+        elif mime_type == "application/vnd.google-apps.presentation":
             return DriveTypes.PRESENTATION
+
 
 class ResolvedDrivePath(NamedTuple):
     name_path: Path

@@ -24,6 +24,7 @@ Attributes:
     AuthGoogle.google_authorized_session -- The authorized Google session object.
 
 """
+
 import json
 import string
 import random
@@ -48,6 +49,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 import config
+
 
 class AuthGoogle:
     """
@@ -312,7 +314,7 @@ class AuthGoogle:
             build: An instance of the Google Drive service (`build`) for making API requests.
         """
         return build("drive", "v3", credentials=self.creds)
-    
+
     def create_calendar_service(self) -> build:
         """Create and return an instance of Google Calendar service.
 
@@ -335,6 +337,7 @@ class AuthGoogle:
             AuthorizedSession: An authorized session with Google services.
         """
         return AuthorizedSession(self.creds)
+
 
 @dataclass
 class Metadata:
@@ -474,4 +477,3 @@ class Metadata:
         if secrets_json:
             self.import_google_client_secret_json(secrets_json)
             secrets_json.unlink()
-
