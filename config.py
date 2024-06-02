@@ -1,3 +1,6 @@
-from meta import Metadata
+META = None
+GOOGLE = None
+API_SCOPES: list[str] = ["https://www.googleapis.com/auth/calendar"]
 
-META: Metadata
+DB = None
+DB_CURSOR = None

@@ -6,6 +6,13 @@ import pendulum
 from pathlib import Path
 from dotenv import load_dotenv
 from rich import print
+import sqlite3
+import hashlib
+
+import config
+from db.models import setup_database, connect_database
+from google_client.auth import Metadata
+from google_client.google_client import GoogleClient
 
 DOTENV_BASE_DIR = Path(__file__).parent
 load_dotenv(Path(DOTENV_BASE_DIR, ".env"))
@@ -114,6 +121,7 @@ class HomebaseScheduleScraper:
 
         for _ in self.employee_shifts_in_range:
             shift = {
+                "shiftId": _["id"],
                 "firstName": self.employee_first_name,
                 "lastName": self.employee_last_name,
                 "jobRole": _["attributes"]["roleName"],
@@ -126,16 +134,122 @@ class HomebaseScheduleScraper:
 
         return json.dumps(shifts)
     
+class HomebaseCalendarSync:
+    def __init__(self) -> None:
+        setup_database()
+        self.scraper = HomebaseScheduleScraper(
+            HOMEBASE_USERNAME,
+            HOMEBASE_PASSWORD,
+            EMPLOYEE_FIRSTNAME,
+            EMPLOYEE_LASTNAME,
+            START_DATE,
+            END_DATE
+        )
+        self.primary_calendar = config.GOOGLE.get_primary_calendar()
+        self.primary_calendar_events = config.GOOGLE.get_calendar_events(self.primary_calendar["id"])
+    
+    def __call__(self):
+        self.update_events_db_from_remote()
+        self.add_homebase_shifts()
+
+    def get_event_hash(self, event: dict) -> str:
+        event_str = json.dumps(event, sort_keys=True)
+        return hashlib.sha512(event_str.encode("utf-8")).hexdigest()
+    
+    def update_events_db_from_remote(self):
+        connect_database()
+        remote_events = set()
+        
+        # Insert or Update Remote Events
+        for event in self.primary_calendar_events:
+            event_id = event["id"]
+            event_hash = self.get_event_hash(event)
+            remote_events.add(event_id)
+            from_homebase = 0  # 0/1 - False/True
+            homebase_shift_id = None
+
+            homebase_event = event.get("source")
+            if homebase_event:
+                shift_id_source = homebase_event["title"].split("-")
+                
+                if len(shift_id_source) > 1 and shift_id_source[0] == "homebaseShiftId":
+                    homebase_shift_id = shift_id_source[1]
+                    from_homebase = 1
+
+            config.DB_CURSOR.execute('SELECT hash FROM events WHERE event_id = ?', (event_id,))
+            row = config.DB_CURSOR.fetchone()
+
+            if row is None:
+                config.DB_CURSOR.execute('INSERT INTO events (event_id, hash, from_homebase, homebase_shift_id) VALUES (?, ?, ?, ?)', (event_id, event_hash, from_homebase, homebase_shift_id))
+                print(f"New event added: {event_id}")
+            elif row[0] != event_hash:
+                config.DB_CURSOR.execute('UPDATE events SET hash = ? WHERE event_id = ?', (event_hash, event_id))
+                print(f"Event updated: {event_id}")
+
+        # Prune Local Events to match remote
+        config.DB_CURSOR.execute('SELECT event_id FROM events')
+        local_events = {row[0] for row in config.DB_CURSOR.fetchall()}
+        events_to_delete = local_events - remote_events
+        for event_id in events_to_delete:
+            config.DB_CURSOR.execute('DELETE FROM events WHERE event_id = ?', (event_id,))
+            print(f"Event deleted: {event_id}")
+
+        config.DB.commit()
+        config.DB.close()
+
+    def get_homebase_events(self) -> set:
+        homebase_events = set()
+
+        for _ in self.primary_calendar_events:
+            if _.get("source"):
+                shift_id_source = _["source"]["title"].split("-")
+                
+                if len(shift_id_source) > 1 and shift_id_source[0] == "homebaseShiftId":
+                    homebase_events.add(shift_id_source[1])
+        return homebase_events
+
+    def add_homebase_shifts(self):
+        homebase_shifts = json.loads(self.scraper.get_employee_shifts_json())
+        connect_database()
+
+
+        for shift in homebase_shifts:
+            config.DB_CURSOR.execute('SELECT hash FROM events WHERE homebase_shift_id = ?', (shift["shiftId"],))
+            row = config.DB_CURSOR.fetchone()
+
+            if row is None and shift["shiftId"] not in self.get_homebase_events():
+                local_time = pendulum.now()
+                start = pendulum.parse(f"{shift["shiftDate"]} {shift["startTime"]}", tz=local_time.timezone_name)
+                end = pendulum.parse(f"{shift["shiftDate"]} {shift["endTime"]}", tz=local_time.timezone_name)
+
+                event = {
+                    "summary": f"Homebase - {shift["jobRole"]}",
+                    "description": f"{shift["firstName"]} {shift["lastName"]}",
+                    "start": {
+                        "dateTime": start.to_iso8601_string(),
+                        "timeZone": local_time.timezone_name
+                    },
+                    "end": {
+                        "dateTime": end.to_iso8601_string(),
+                        "timeZone": local_time.timezone_name
+                    },
+                    "source": {
+                        "title": f"homebaseShiftId-{shift["shiftId"]}",
+                        "url": "https://app.joinhomebase.com/"
+                    },
+                }
+
+                config.GOOGLE.create_new_event(self.primary_calendar["id"], event)
+                self.update_events_db_from_remote()
+
+
+
 def main():
-    scraper = HomebaseScheduleScraper(
-        HOMEBASE_USERNAME,
-        HOMEBASE_PASSWORD,
-        EMPLOYEE_FIRSTNAME,
-        EMPLOYEE_LASTNAME,
-        START_DATE,
-        END_DATE
-    )
-    print(scraper.get_employee_shifts_json())
+    config.META = Metadata.metadata_singleton_factory()
+    config.META.check_for_client_secret_and_import()
+    config.GOOGLE = GoogleClient()
+    sync = HomebaseCalendarSync()
+    sync()
 
 if __name__ == "__main__":
     main()
