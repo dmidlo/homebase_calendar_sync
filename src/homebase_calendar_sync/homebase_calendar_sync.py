@@ -353,7 +353,3 @@ class HomebaseCalendarSync:
 def main():
     sync = HomebaseCalendarSync()
     sync()
-
-
-if __name__ == "__main__":
-    main()
