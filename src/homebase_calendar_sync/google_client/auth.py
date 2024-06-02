@@ -48,6 +48,9 @@ from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+from InquirerPy import inquirer
+from InquirerPy.validator import PathValidator
+
 from .. import config
 
 
@@ -269,10 +272,16 @@ class AuthGoogle:
             https://console.cloud.google.com/apis/credentials?project=YOUR_PROJECT
         """
         if not config.META.google_client_token:
-            flow: "InstalledAppFlow" = InstalledAppFlow.from_client_config(
-                config.META.google_client_secret, api_scopes
-            )
-            return json.loads(Credentials.to_json(flow.run_local_server(port=0)))
+            try:
+                flow: "InstalledAppFlow" = InstalledAppFlow.from_client_config(
+                    config.META.google_client_secret, api_scopes
+                )
+                return json.loads(Credentials.to_json(flow.run_local_server(port=0)))
+            except ValueError as e:
+                if "client secrets" in str(e).lower():
+                    print("No Google Auth Credentials found. \n download a new client_secrets.json file from: https://console.cloud.google.com/apis/credentials")
+                    raise SystemExit
+
         return config.META.google_client_token
 
     def fetch_credentials(self, api_scopes) -> None:
@@ -342,8 +351,8 @@ class AuthGoogle:
 @dataclass
 class Metadata:
     _instance = None
-    app_settings_path = Path.home() / ".homebase_calendar_sync"
-    app_metadata_path = Path.home() / ".homebase_calendar_sync_meta"
+    app_settings_path = Path.home() / config.META_SETTINGS_PATH
+    app_metadata_path = Path.home() / config.META_DATA_PATH
     google_client_secret: dict = field(default_factory=dict)
     google_client_token: Credentials | None = None
 
@@ -477,3 +486,34 @@ class Metadata:
         if secrets_json:
             self.import_google_client_secret_json(secrets_json)
             secrets_json.unlink()
+
+def import_client_secret(client_secret: bool | str) -> None:
+    config.META = Metadata.metadata_singleton_factory()
+    
+    if isinstance(client_secret, bool):
+        client_secret_path = inquirer.filepath(
+            message="path to 'client_secret.json:'",
+            default=str(next(Path.cwd().glob("client_secret*.json"))),
+            validate=PathValidator(is_file=True, message="input is not a file"),
+            only_files=True,
+        ).execute()
+    else:
+        client_secret_path = client_secret
+
+    config.META.import_google_client_secret_json(client_secret_path)
+    Path(client_secret_path).unlink()
+    config.META(google_client_token=AuthGoogle.initiate_google_oauth_flow(config.API_SCOPES))
+    
+    print(f"Imported client_secrets.json file: {client_secret_path}")
+    raise SystemExit
+
+def reset_auth_cache() -> None:
+    app_settings_path = Path.home() / config.META_SETTINGS_PATH
+    app_metadata_path = Path.home() / config.META_DATA_PATH
+
+    try:
+        app_metadata_path.unlink()
+        app_settings_path.unlink()
+    except FileNotFoundError:
+        print("no auth cache to reset.")
+

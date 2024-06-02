@@ -5,3 +5,4 @@ events.db
 build/
 dist/
 *.egg-info/
+client_secret*

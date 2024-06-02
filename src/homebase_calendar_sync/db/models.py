@@ -1,14 +1,15 @@
 import sqlite3
+from pathlib import Path
 from .. import config
 
 
 def connect_database():
-    config.DB = sqlite3.connect("events.db")
+    config.DB = sqlite3.connect(config.DB_NAME)
     config.DB_CURSOR = config.DB.cursor()
 
 
 def setup_database():
-    config.DB = sqlite3.connect("events.db")
+    config.DB = sqlite3.connect(config.DB_NAME)
     config.DB_CURSOR = config.DB.cursor()
     config.DB_CURSOR.execute(
         """
@@ -31,3 +32,10 @@ def setup_database():
     """
     )
     config.DB.commit()
+
+def reset_database():
+    db_path = Path.cwd() / config.DB_NAME
+    try:
+        db_path.unlink()
+    except FileNotFoundError:
+        print("no events database to reset")

@@ -63,6 +63,15 @@ class GoogleClient:
             .execute()
         )
         print(f"Event Created: {event_result.get('htmlLink')}")
+        return event_result
+
+    def remove_event(self, calendar_id: str, event_id: str):
+        event_result = (
+            self.auth_google.calendar_service.events()
+            .delete(calendarId=calendar_id, eventId=event_id)
+            .execute()
+        )
+        print(f"Event Removed: {event_result}")
 
     def get_google_drive_folder(self, folder_id: str) -> dict:
         return (
