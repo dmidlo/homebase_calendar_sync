@@ -1,2 +1,0 @@
-[console_scripts]
-homebase_calendar_sync = homebase_calendar_sync.homebase_calendar_sync:main

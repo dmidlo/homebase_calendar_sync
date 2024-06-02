@@ -4,3 +4,4 @@ __pycache__/
 events.db
 build/
 dist/
+src/homebase_calendar_sync.egg-info
