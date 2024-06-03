@@ -18,31 +18,45 @@ def cli():
     parser = argparse.ArgumentParser(description="Homebase/Google Calendar Sync CLI")
     parser.add_argument('--import-secret', nargs="?", const=True, default=False, help="Path to 'client_secret.json'")
     parser.add_argument('--reset-remote', action='store_true', help="Remove all homebase events from Google Calendar for current user and calendar")
-    parser.add_argument('--reset-auth', action='store_true', help="reset the authentication cache")
     parser.add_argument('--reset-db', action='store_true', help="reset the events database")
+    parser.add_argument('--reset-events', action='store_true', help="reset both local and remote events")
+    parser.add_argument('--reset-auth', action='store_true', help="reset the authentication cache")
+    parser.add_argument('--reset-local', action='store_true', help="reset local files and configuration")
     parser.add_argument('--reset-all', action='store_true', help="reset auth config and events database")
 
+    config.ARGS = parser.parse_args()
 
-    args = parser.parse_args()
-
-    if args.import_secret:
-        import_client_secret(args.import_secret)
+    if config.ARGS.import_secret:
+        import_client_secret(config.ARGS.import_secret)
         raise SystemExit
     
-    if args.reset_remote:
+    if config.ARGS.reset_remote:
         remove = HomebaseCalendarSync()
         remove.remove_remote_homebase_events()
         raise SystemExit()
 
-    if args.reset_auth:
+    if config.ARGS.reset_db:
+        reset_database()
+        raise SystemExit
+    
+    if config.ARGS.reset_events:
+        remove = HomebaseCalendarSync()
+        remove.remove_remote_homebase_events()
+        reset_database()
+        raise SystemExit()
+
+    if config.ARGS.reset_auth:
         reset_auth_cache()
         raise SystemExit
     
-    if args.reset_db:
+    if config.ARGS.reset_local:
+        reset_auth_cache()
         reset_database()
         raise SystemExit
 
-    if args.reset_all:
+    if config.ARGS.reset_all:
+        remove = HomebaseCalendarSync()
+        remove.remove_remote_homebase_events()
         reset_auth_cache()
         reset_database()
         raise SystemExit
@@ -387,12 +401,22 @@ class HomebaseCalendarSync:
 
         for shift_id in self.remote_homebase_events:
             config.DB_CURSOR.execute(
-                    "SELECT homebase_shift_id FROM events WHERE homebase_shift_id = ?",
-                    (shift_id,),
-                )
-            row = config.DB_CURSOR.fetchone()
-            
-            print(row)
+                "SELECT event_id FROM events WHERE homebase_shift_id = ?",
+                (shift_id,),
+            )
+            event_id = config.DB_CURSOR.fetchone()[0]
+            event_result = config.GOOGLE.remove_event(self.primary_calendar["id"], event_id)
+
+            config.DB_CURSOR.execute(
+                "DELETE FROM events WHERE event_id = ?", (event_id,)
+            )
+            config.DB.commit()
+
+            config.DB_CURSOR.execute(
+                "DELETE FROM shifts WHERE homebase_shift_id = ?", (shift_id,)
+            )
+            config.DB.commit()
+
 
 def main():
     cli()
