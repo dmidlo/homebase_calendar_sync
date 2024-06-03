@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
+ARGS = None
+
 DOTENV_BASE_DIR = Path.cwd()
 load_dotenv(Path(DOTENV_BASE_DIR, ".env"))
 
