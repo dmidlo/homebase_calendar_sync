@@ -504,7 +504,8 @@ def import_client_secret(client_secret: bool | str) -> None:
     Path(client_secret_path).unlink()
     config.META(google_client_token=AuthGoogle.initiate_google_oauth_flow(config.API_SCOPES))
     
-    print(f"Imported client_secrets.json file: {client_secret_path}")
+    print("Imported client_secrets.json file.")
+    print(f"...deleted authentication artifacts: {client_secret_path}")
     raise SystemExit
 
 def reset_auth_cache() -> None:
