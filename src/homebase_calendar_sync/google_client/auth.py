@@ -279,7 +279,9 @@ class AuthGoogle:
                 return json.loads(Credentials.to_json(flow.run_local_server(port=0)))
             except ValueError as e:
                 if "client secrets" in str(e).lower():
-                    print("No Google Auth Credentials found. \n download a new client_secrets.json file from: https://console.cloud.google.com/apis/credentials")
+                    print(
+                        "No Google Auth Credentials found. \n download a new client_secrets.json file from: https://console.cloud.google.com/apis/credentials"
+                    )
                     raise SystemExit
 
         return config.META.google_client_token
@@ -487,13 +489,18 @@ class Metadata:
             self.import_google_client_secret_json(secrets_json)
             secrets_json.unlink()
 
+
 def import_client_secret(client_secret: bool | str) -> None:
     config.META = Metadata.metadata_singleton_factory()
-    
+    try:
+        default_path = str(next(Path.cwd().glob("client_secret*.json")))
+    except StopIteration:
+        default_path = str(Path(".").resolve())
+
     if isinstance(client_secret, bool):
         client_secret_path = inquirer.filepath(
             message="path to 'client_secret.json:'",
-            default=str(next(Path.cwd().glob("client_secret*.json"))),
+            default=default_path,
             validate=PathValidator(is_file=True, message="input is not a file"),
             only_files=True,
         ).execute()
@@ -502,11 +509,14 @@ def import_client_secret(client_secret: bool | str) -> None:
 
     config.META.import_google_client_secret_json(client_secret_path)
     Path(client_secret_path).unlink()
-    config.META(google_client_token=AuthGoogle.initiate_google_oauth_flow(config.API_SCOPES))
-    
+    config.META(
+        google_client_token=AuthGoogle.initiate_google_oauth_flow(config.API_SCOPES)
+    )
+
     print("Imported client_secrets.json file.")
     print(f"...deleted authentication artifacts: {client_secret_path}")
     raise SystemExit
+
 
 def reset_auth_cache() -> None:
     app_settings_path = Path.home() / config.META_SETTINGS_PATH
@@ -517,4 +527,3 @@ def reset_auth_cache() -> None:
         app_settings_path.unlink()
     except FileNotFoundError:
         print("no auth cache to reset.")
-

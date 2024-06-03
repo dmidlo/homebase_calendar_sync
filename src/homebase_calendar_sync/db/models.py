@@ -33,6 +33,7 @@ def setup_database():
     )
     config.DB.commit()
 
+
 def reset_database():
     db_path = Path.cwd() / config.DB_NAME
     try:

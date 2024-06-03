@@ -14,22 +14,43 @@ from .db.models import reset_database
 
 # TODO: Allow user to specifiy destination calendar rather than the default of 'primary'
 
+
 def cli():
     parser = argparse.ArgumentParser(description="Homebase/Google Calendar Sync CLI")
-    parser.add_argument('--import-secret', nargs="?", const=True, default=False, help="Path to 'client_secret.json'")
-    parser.add_argument('--reset-remote', action='store_true', help="Remove all homebase events from Google Calendar for current user and calendar")
-    parser.add_argument('--reset-db', action='store_true', help="reset the events database")
-    parser.add_argument('--reset-events', action='store_true', help="reset both local and remote events")
-    parser.add_argument('--reset-auth', action='store_true', help="reset the authentication cache")
-    parser.add_argument('--reset-local', action='store_true', help="reset local files and configuration")
-    parser.add_argument('--reset-all', action='store_true', help="reset auth config and events database")
+    parser.add_argument(
+        "--import-secret",
+        nargs="?",
+        const=True,
+        default=False,
+        help="Path to 'client_secret.json'",
+    )
+    parser.add_argument(
+        "--reset-remote",
+        action="store_true",
+        help="Remove all homebase events from Google Calendar for current user and calendar",
+    )
+    parser.add_argument(
+        "--reset-db", action="store_true", help="reset the events database"
+    )
+    parser.add_argument(
+        "--reset-events", action="store_true", help="reset both local and remote events"
+    )
+    parser.add_argument(
+        "--reset-auth", action="store_true", help="reset the authentication cache"
+    )
+    parser.add_argument(
+        "--reset-local", action="store_true", help="reset local files and configuration"
+    )
+    parser.add_argument(
+        "--reset-all", action="store_true", help="reset auth config and events database"
+    )
 
     config.ARGS = parser.parse_args()
 
     if config.ARGS.import_secret:
         import_client_secret(config.ARGS.import_secret)
         raise SystemExit
-    
+
     if config.ARGS.reset_remote:
         remove = HomebaseCalendarSync()
         remove.remove_remote_homebase_events()
@@ -38,7 +59,7 @@ def cli():
     if config.ARGS.reset_db:
         reset_database()
         raise SystemExit
-    
+
     if config.ARGS.reset_events:
         remove = HomebaseCalendarSync()
         remove.remove_remote_homebase_events()
@@ -48,7 +69,7 @@ def cli():
     if config.ARGS.reset_auth:
         reset_auth_cache()
         raise SystemExit
-    
+
     if config.ARGS.reset_local:
         reset_auth_cache()
         reset_database()
@@ -228,11 +249,15 @@ class HomebaseCalendarSync:
         self.primary_calendar_events = config.GOOGLE.get_calendar_events(
             self.primary_calendar["id"]
         )
-        self.primary_calendar_event_ids = {_["id"] for _ in self.primary_calendar_events}
+        self.primary_calendar_event_ids = {
+            _["id"] for _ in self.primary_calendar_events
+        }
         self.remote_homebase_shifts = json.loads(
             self.scraper.get_employee_shifts_json()
         )
-        self.remote_homebase_shift_ids = {_["shiftId"] for _ in self.remote_homebase_shifts}
+        self.remote_homebase_shift_ids = {
+            _["shiftId"] for _ in self.remote_homebase_shifts
+        }
         self.remote_homebase_events = self.get_homebase_events()
 
     def __call__(self):
@@ -341,11 +366,21 @@ class HomebaseCalendarSync:
                 )
                 events_row = config.DB_CURSOR.fetchone()
 
-                if events_row is None and shift["shiftId"] not in self.remote_homebase_events:
-                    event_result = config.GOOGLE.create_new_event(self.primary_calendar["id"], event)
+                if (
+                    events_row is None
+                    and shift["shiftId"] not in self.remote_homebase_events
+                ):
+                    event_result = config.GOOGLE.create_new_event(
+                        self.primary_calendar["id"], event
+                    )
                     config.DB_CURSOR.execute(
                         "INSERT INTO events (event_id, hash, from_homebase, homebase_shift_id) VALUES (?, ?, ?, ?)",
-                        (event_result["id"], self.get_event_hash(event_result), 1, shift["shiftId"]),
+                        (
+                            event_result["id"],
+                            self.get_event_hash(event_result),
+                            1,
+                            shift["shiftId"],
+                        ),
                     )
                     self.primary_calendar_events.append(event_result)
                     self.primary_calendar_event_ids.add(event_result["id"])
@@ -361,10 +396,17 @@ class HomebaseCalendarSync:
                 config.DB.commit()
             else:
                 if shift["shiftId"] not in self.remote_homebase_events:
-                    event_result = config.GOOGLE.create_new_event(self.primary_calendar["id"], event)
+                    event_result = config.GOOGLE.create_new_event(
+                        self.primary_calendar["id"], event
+                    )
                     config.DB_CURSOR.execute(
                         "INSERT INTO events (event_id, hash, from_homebase, homebase_shift_id) VALUES (?, ?, ?, ?)",
-                        (event_result["id"], self.get_event_hash(event_result), 1, shift["shiftId"]),
+                        (
+                            event_result["id"],
+                            self.get_event_hash(event_result),
+                            1,
+                            shift["shiftId"],
+                        ),
                     )
                     self.primary_calendar_events.append(event_result)
                     self.primary_calendar_event_ids.add(event_result["id"])
@@ -405,7 +447,9 @@ class HomebaseCalendarSync:
                 (shift_id,),
             )
             event_id = config.DB_CURSOR.fetchone()[0]
-            event_result = config.GOOGLE.remove_event(self.primary_calendar["id"], event_id)
+            event_result = config.GOOGLE.remove_event(
+                self.primary_calendar["id"], event_id
+            )
 
             config.DB_CURSOR.execute(
                 "DELETE FROM events WHERE event_id = ?", (event_id,)
