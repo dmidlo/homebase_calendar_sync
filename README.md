@@ -1,14 +1,20 @@
 ```
 homebase_calendar_sync --help
-usage: homebase_calendar_sync [-h] [--reset-auth] [--reset-db] [--reset-all]
+usage: homebase_calendar_sync [-h] [--import-secret [IMPORT_SECRET]] [--reset-remote] [--reset-db] [--reset-events] [--reset-auth] [--reset-local]
+                              [--reset-all]
 
 Homebase/Google Calendar Sync CLI
 
 options:
-  -h, --help    show this help message and exit
-  --reset-auth  reset the authentication cache
-  --reset-db    reset the events database
-  --reset-all   reset auth config and events database
+  -h, --help            show this help message and exit
+  --import-secret [IMPORT_SECRET]
+                        Path to 'client_secret.json'
+  --reset-remote        Remove all homebase events from Google Calendar for current user and calendar
+  --reset-db            reset the events database
+  --reset-events        reset both local and remote events
+  --reset-auth          reset the authentication cache
+  --reset-local         reset local files and configuration
+  --reset-all           reset auth config and events database
 ```
 
 

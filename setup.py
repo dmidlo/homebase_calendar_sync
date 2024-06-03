@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='homebase_calendar_sync',
-    version='0.1.7',
+    version='0.1.9',
     author='David Midlo',
     author_email='dmidlo@gmail.com',
     description='A simple web scraper that reads gethomebase.com\'s schedule and updates Google Calendar.',
