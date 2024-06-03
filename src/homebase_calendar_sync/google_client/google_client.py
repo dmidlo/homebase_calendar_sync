@@ -71,7 +71,7 @@ class GoogleClient:
             .delete(calendarId=calendar_id, eventId=event_id)
             .execute()
         )
-        print(f"Event Removed: {event_result}")
+        print(f"Event Removed: {event_id}")
 
     def get_google_drive_folder(self, folder_id: str) -> dict:
         return (
