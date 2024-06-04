@@ -17,10 +17,11 @@ LOOKAHEAD = os.environ["CC_HOMEBASE_LOOKAHEAD"]
 LOOKAHEAD = LOOKAHEAD.lower() in ["true", "1", "t", "y", "yes"]
 LOOKAHEAD_DAYS = os.environ["CC_HOMEBASE_DAYS_LOOKAHEAD"]
 LOOKAHEAD_DAYS = int(LOOKAHEAD_DAYS)
+TIMEZONE = os.environ["CC_HOMEBASE_TIMEZONE"]
 
 META = None
-META_SETTINGS_PATH = ".homebase_calendar_sync"
-META_DATA_PATH = ".homebase_calendar_sync_meta"
+META_SETTINGS_FILE = ".homebase_calendar_sync"
+META_DATA_FILE = ".homebase_calendar_sync_meta"
 GOOGLE = None
 API_SCOPES: list[str] = ["https://www.googleapis.com/auth/calendar"]
 

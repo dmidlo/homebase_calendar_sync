@@ -1,3 +1,5 @@
+#!/bin/bash
+
 bold=$(tput bold)
 normal=$(tput sgr0)
 
@@ -12,11 +14,9 @@ dev()
 
 build()
 {
-    rm -rf ./dist
-    pip install twine wheel
-    python setup.py check
-    python setup.py sdist
-    python setup.py bdist_wheel --universal
+    rm -rf ./dist ./build
+    pip install build twine wheel
+    python -m build
 }
 
 buildenv()
@@ -24,6 +24,22 @@ buildenv()
     echo "${bold}setting up test pip environment${normal}"
     rm -rf ../myproject
     mkdir ../myproject
+    cp .env ../myproject/.env
+    cd ../myproject
+    pwd
+    python -m venv venv
+    echo "${bold}activating test pip environment${normal}"
+    source venv/bin/activate
+    echo "${bold}test pip environment set up complete.${normal}"
+}
+
+buildenv_pre_docker()
+{
+    echo "${bold}setting up test pip environment${normal}"
+    rm -rf ../myproject
+    mkdir ../myproject
+    mv ~/.homebase_calendar_sync ../myproject/
+    mv ~/.homebase_calendar_sync_meta ../myproject/
     cp .env ../myproject/.env
     cd ../myproject
     pwd
@@ -41,6 +57,16 @@ destroyenv()
     source venv/bin/activate
 }
 
+destroyenv_pre_docker()
+{
+    mv .homebase_calendar_sync ~/
+    mv .homebase_calendar_sync_meta ~/
+    cd ../homebase_calendar_sync
+    rm -rf ../myproject
+    echo "${bold}leaving test pip environment${normal}"
+    source venv/bin/activate
+}
+
 homebase_calendar_sync_test()
 {
     echo "${bold}testing homebase_calendar_sync --help test pip environment${normal}"
@@ -49,6 +75,8 @@ homebase_calendar_sync_test()
     homebase_calendar_sync
     echo "${bold}testing homebase_calendar_sync --reset-events test pip environment${normal}"
     homebase_calendar_sync --reset-events
+    echo "${bold}printing version to test pip environment${normal}"
+    homebase_calendar_sync --version
 }
 
 if [[ $1 == "dev" ]]
@@ -62,12 +90,12 @@ then
 elif [[ $1 == "pypi" ]]
 then
     build
-    twine upload -r pypi --config-file .pypirc dist/*.whl dist/*.tar.gz
+    twine upload -r pypi --config-file .pypirc dist/*
     exit 0
 elif [[ $1 == "testpypi" ]]
 then
     build
-    twine upload -r testpypi --config-file .pypirc dist/*.whl dist/*.tar.gz
+    twine upload -r testpypi --config-file .pypirc dist/*
 elif [[ $1 == "testpypi_install" ]]
 then
     buildenv
@@ -82,4 +110,11 @@ then
     pip install homebase_calendar_sync
     homebase_calendar_sync_test
     destroyenv
+elif [[ $1 == "pypi_pre_docker" ]]
+then
+    buildenv_pre_docker
+    echo "${bold}installing homebase_calendar_sync from pypi: https://pypi.org/${normal}"
+    pip install homebase_calendar_sync
+    homebase_calendar_sync_test
+    destroyenv_pre_docker
 fi

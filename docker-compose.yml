@@ -1,0 +1,5 @@
+services:
+  homebase_calendar_sync:
+    build: .
+    volumes:
+      - .:/app

@@ -53,7 +53,6 @@ from InquirerPy.validator import PathValidator
 
 from .. import config
 
-
 class AuthGoogle:
     """
     A class for managing Google authentication credentials and services.
@@ -349,12 +348,19 @@ class AuthGoogle:
         """
         return AuthorizedSession(self.creds)
 
+def get_artifacts_path():
+    settings_path = Path.cwd() / config.META_SETTINGS_FILE
+    metadata_path = Path.cwd() / config.META_DATA_FILE
+
+    if settings_path.exists() and metadata_path.exists():
+        return settings_path, metadata_path
+
+    return Path.home() / config.META_SETTINGS_FILE, Path.home() / config.META_DATA_FILE
 
 @dataclass
 class Metadata:
     _instance = None
-    app_settings_path = Path.home() / config.META_SETTINGS_PATH
-    app_metadata_path = Path.home() / config.META_DATA_PATH
+    app_settings_path, app_metadata_path = get_artifacts_path()
     google_client_secret: dict = field(default_factory=dict)
     google_client_token: Credentials | None = None
 
@@ -422,6 +428,13 @@ class Metadata:
 
     @staticmethod
     def write_settings(settings_path: Path, settings: dict):
+        try:
+            home_dir = Path.home()
+            if not home_dir.exists():
+                raise ValueError("Home directory does not exist")
+        except (KeyError, ValueError):
+            settings_path = Path.cwd() / settings_path.name
+
         if not settings_path.exists():
             settings_path.touch()
 
@@ -489,7 +502,6 @@ class Metadata:
             self.import_google_client_secret_json(secrets_json)
             secrets_json.unlink()
 
-
 def import_client_secret(client_secret: bool | str) -> None:
     config.META = Metadata.metadata_singleton_factory()
     try:
@@ -517,10 +529,8 @@ def import_client_secret(client_secret: bool | str) -> None:
     print(f"...deleted authentication artifacts: {client_secret_path}")
     raise SystemExit
 
-
 def reset_auth_cache() -> None:
-    app_settings_path = Path.home() / config.META_SETTINGS_PATH
-    app_metadata_path = Path.home() / config.META_DATA_PATH
+    app_settings_path, app_metadata_path = get_artifacts_path()
 
     try:
         app_metadata_path.unlink()
