@@ -8,4 +8,9 @@ RUN apk add --no-cache gcc musl-dev libffi-dev
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir homebase_calendar_sync
 
-CMD homebase_calendar_sync
+COPY crontab /etc/crontabs/root
+
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["docker-entrypoint.sh"]
