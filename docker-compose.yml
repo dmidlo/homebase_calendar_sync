@@ -1,6 +1,7 @@
 services:
-  homebase_calendar_sync:
+  app:
     build: .
     restart: unless-stopped
     volumes:
       - .:/app
+      - ./cron.log:/var/log/cron.log
