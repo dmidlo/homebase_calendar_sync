@@ -79,6 +79,24 @@ homebase_calendar_sync_test()
     homebase_calendar_sync --version
 }
 
+docker_build()
+{
+    echo "${bold}Building docker image...${normal}"
+    docker build --no-cache -t homebase_calendar_sync .
+}
+
+docker_up()
+{
+    echo "${bold}Bringing up container with docker-compose...${normal}"
+    docker-compose up -d
+}
+
+docker_ps()
+{
+    echo "${bold}docker ps for homebase_calendar_sync containers...${normal}"
+    docker ps -a
+}
+
 if [[ $1 == "dev" ]]
 then
     dev
@@ -117,4 +135,11 @@ then
     pip install homebase_calendar_sync
     homebase_calendar_sync_test
     destroyenv_pre_docker
+elif [[ $1 == "docker_build" ]]
+then
+    docker_build
+elif [[ $1 == "docker_test" ]]
+then
+    docker_build
+    docker_up
 fi

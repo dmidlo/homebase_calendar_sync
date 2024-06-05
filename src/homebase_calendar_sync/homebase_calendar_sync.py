@@ -4,7 +4,6 @@ from bs4 import BeautifulSoup
 import pendulum
 from rich import print
 import hashlib
-import warnings
 import importlib.metadata
 import argparse
 
@@ -15,13 +14,6 @@ from .google_client.google_client import GoogleClient
 from .db.models import reset_database
 
 # TODO: Allow user to specifiy destination calendar rather than the default of 'primary'
-
-
-def pendulum_tz_warning_handler(message, category, filename, lineno, file=None, line=None):
-    if "defaulting to UTC" in str(message):
-        raise UserWarning(message)
-
-warnings.showwarning = pendulum_tz_warning_handler
 
 def cli():
     parser = argparse.ArgumentParser(description="Homebase/Google Calendar Sync CLI")
@@ -198,24 +190,18 @@ class HomebaseScheduleScraper:
         )
 
     def initialize_date_range(self, start_date, end_date):
+        if start_date == "today":
+            start = pendulum.now(tz=config.TIMEZONE).start_of("day")
+        else:
+            start = pendulum.parse(start_date, tz=config.TIMEZONE).start_of("day")
+        if end_date == "today":
+            end = pendulum.now(tz=config.TIMEZONE).end_of("day")
+        else:
+            end = pendulum.parse(end_date, tz=config.TIMEZONE).end_of("day")
 
-        try:
-            if start_date == "today":
-                start = pendulum.now().start_of("day")
-            else:
-                start = pendulum.parse(start_date).start_of("day")
-            if end_date == "today":
-                end = pendulum.now().end_of("day")
-            else:
-                end = pendulum.parse(end_date).end_of("day")
-
-            if config.LOOKAHEAD:
-                start = start.start_of("week")
-                end = end.add(days=config.LOOKAHEAD_DAYS).end_of("week")
-        except UserWarning as e:
-            pendulum.set_local_timezone(config.TIMEZONE)
-            print(f"Modified ")
-            self.initialize_date_range(start_date, end_date)
+        if config.LOOKAHEAD:
+            start = start.start_of("week")
+            end = end.add(days=config.LOOKAHEAD_DAYS).end_of("week")
 
         return start, end
 
@@ -224,7 +210,7 @@ class HomebaseScheduleScraper:
             _
             for _ in self.employee_shifts
             if self.start_date
-            <= pendulum.parse(_["attributes"]["startAt"])
+            <= pendulum.parse(_["attributes"]["startAt"], tz=config.TIMEZONE)
             <= self.end_date
         )
 
@@ -237,13 +223,9 @@ class HomebaseScheduleScraper:
                 "firstName": self.employee_first_name,
                 "lastName": self.employee_last_name,
                 "jobRole": _["attributes"]["roleName"],
-                "shiftDate": pendulum.parse(
-                    _["attributes"]["startAt"]
-                ).to_date_string(),
-                "startTime": pendulum.parse(
-                    _["attributes"]["startAt"]
-                ).to_time_string(),
-                "endTime": pendulum.parse(_["attributes"]["endAt"]).to_time_string(),
+                "shiftDate": pendulum.parse(_["attributes"]["startAt"], tz=config.TIMEZONE).to_date_string(),
+                "startTime": pendulum.parse(_["attributes"]["startAt"], tz=config.TIMEZONE).to_time_string(),
+                "endTime": pendulum.parse(_["attributes"]["endAt"], tz=config.TIMEZONE).to_time_string(),
             }
 
             shifts.append(shift)
@@ -347,24 +329,23 @@ class HomebaseCalendarSync:
             )
             shifts_row = config.DB_CURSOR.fetchone()
 
-            local_time = pendulum.now()
+            local_time = pendulum.now(tz=config.TIMEZONE)
             start = pendulum.parse(
-                f"{shift["shiftDate"]} {shift["startTime"]}",
-                tz=local_time.timezone_name,
+                f"{shift["shiftDate"]} {shift["startTime"]}", tz=config.TIMEZONE
             )
             end = pendulum.parse(
-                f"{shift["shiftDate"]} {shift["endTime"]}", tz=local_time.timezone_name
+                f"{shift["shiftDate"]} {shift["endTime"]}", tz=config.TIMEZONE
             )
             event = {
                 "summary": f"Homebase - {shift["jobRole"]}",
                 "description": f"{shift["firstName"]} {shift["lastName"]}",
                 "start": {
                     "dateTime": start.to_iso8601_string(),
-                    "timeZone": local_time.timezone_name,
+                    "timeZone": config.TIMEZONE,
                 },
                 "end": {
                     "dateTime": end.to_iso8601_string(),
-                    "timeZone": local_time.timezone_name,
+                    "timeZone": config.TIMEZONE,
                 },
                 "source": {
                     "title": f"homebaseShiftId-{shift["shiftId"]}",

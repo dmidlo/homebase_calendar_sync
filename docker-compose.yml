@@ -1,5 +1,6 @@
 services:
   homebase_calendar_sync:
     build: .
+    restart: unless-stopped
     volumes:
       - .:/app
